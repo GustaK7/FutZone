@@ -1,0 +1,36 @@
+name: futzone
+
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.0.5
+  flutter_localizations:
+    sdk: flutter
+
+# Para efeito de loading nas imagens
+  cached_network_image: ^3.3.1
+
+# Para animações e efeitos visuais
+  animations: ^2.0.11
+
+# Para internacionalização (opcional, mas recomendado)
+  intl: ^0.19.0
+
+flutter:
+  uses-material-design: true
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
