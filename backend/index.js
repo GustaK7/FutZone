@@ -1,0 +1,103 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB conectado!'))
+  .catch(err => console.error('Erro ao conectar no MongoDB:', err));
+
+// Importar models
+const Space = require('./models/Space');
+const User = require('./models/User');
+const Reservation = require('./models/reservartion');
+const Rating = require('./models/rating');
+
+// Rotas para espaços esportivos
+app.get('/spaces', async (req, res) => {
+  try {
+    const spaces = await Space.find();
+    res.json(spaces);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar espaços' });
+  }
+});
+
+app.post('/spaces', async (req, res) => {
+  try {
+    const space = new Space(req.body);
+    await space.save();
+    res.status(201).json(space);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao cadastrar espaço' });
+  }
+});
+
+// Rotas para usuários
+app.get('/users', async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar usuários' });
+  }
+});
+
+app.post('/users', async (req, res) => {
+  try {
+    const user = new User(req.body);
+    await user.save();
+    res.status(201).json(user);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao cadastrar usuário' });
+  }
+});
+
+// Rotas para reservas
+app.get('/reservations', async (req, res) => {
+  try {
+    const reservations = await Reservation.find().populate('userId').populate('spaceId');
+    res.json(reservations);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar reservas' });
+  }
+});
+
+app.post('/reservations', async (req, res) => {
+  try {
+    const reservation = new Reservation(req.body);
+    await reservation.save();
+    res.status(201).json(reservation);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao cadastrar reserva' });
+  }
+});
+
+// Rotas para comentários/ratings
+app.get('/ratings', async (req, res) => {
+  try {
+    const ratings = await Rating.find().populate('userId').populate('spaceId');
+    res.json(ratings);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar avaliações' });
+  }
+});
+
+app.post('/ratings', async (req, res) => {
+  try {
+    const rating = new Rating(req.body);
+    await rating.save();
+    res.status(201).json(rating);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao cadastrar avaliação' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
+});

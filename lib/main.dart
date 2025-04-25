@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -5,7 +9,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/animation.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
+}
+
+class AppConfig {
+  static const String backendUrl =
+      'http://localhost:3000'; // Corrigido: adicionado os dois pontos
 }
 
 class SportsSpace {
@@ -36,7 +45,8 @@ class ReservedSpace {
   final SportsSpace space;
   final DateTime dateTime;
   final int hours;
-  ReservedSpace({required this.space, required this.dateTime, required this.hours});
+  ReservedSpace(
+      {required this.space, required this.dateTime, required this.hours});
 }
 
 class NotificationItem {
@@ -45,111 +55,86 @@ class NotificationItem {
   NotificationItem({required this.message, required this.dateTime});
 }
 
+class SpaceService {
+  static Future<List<SportsSpace>> fetchSpaces() async {
+    final response =
+        await http.get(Uri.parse('${AppConfig.backendUrl}/spaces'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data
+          .map((json) => SportsSpace(
+                id: json['_id'] ?? '',
+                name: json['name'] ?? '',
+                pricePerHour: (json['pricePerHour'] ?? 0).toDouble(),
+                imageUrl: json['imageUrl'] ?? '',
+                rating: (json['rating'] ?? 0).toDouble(),
+                sportType: json['sportType'] ?? '',
+                description: json['description'] ?? '',
+                hostName: json['hostName'] ?? '',
+                address: json['address'] ?? '',
+              ))
+          .toList();
+    } else {
+      throw Exception('Erro ao buscar espaços');
+    }
+  }
+
+  static Future<void> createSpace({
+    required String name,
+    required String type,
+    required double price,
+    required String address,
+    required String description,
+    required String host,
+    required String imageUrl,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.backendUrl}/spaces'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'name': name,
+        'sportType': type,
+        'pricePerHour': price,
+        'address': address,
+        'description': description,
+        'hostName': host,
+        'imageUrl': imageUrl,
+        'rating': 0,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw Exception('Erro ao cadastrar espaço');
+    }
+  }
+}
+
+class UserService {
+  static Future<Map<String, dynamic>> fetchUser(String email) async {
+    final response =
+        await http.get(Uri.parse('${AppConfig.backendUrl}/users?email=$email'));
+    if (response.statusCode == 200) {
+      final List data = json.decode(response.body);
+      if (data.isNotEmpty) return data.first;
+      throw Exception('Usuário não encontrado');
+    } else {
+      throw Exception('Erro ao buscar usuário');
+    }
+  }
+
+  static Future<void> updateUser(String id, Map<String, dynamic> update) async {
+    final response = await http.put(
+      Uri.parse('${AppConfig.backendUrl}/users/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(update),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Erro ao atualizar usuário');
+    }
+  }
+}
+
 class AppState extends ChangeNotifier {
-  final List<SportsSpace> _spaces = [
-    // Futebol
-    SportsSpace(
-      id: '1',
-      name: 'Quadra Society Central',
-      pricePerHour: 120.0,
-      imageUrl: 'https://media.istockphoto.com/id/1036082216/pt/foto/marking-the-angle-of-the-football-field-with-artificial-surface.jpg?s=1024x1024&w=is&k=20&c=ef4MqwpETI0wnGTJEWB7_n4FNwXZY06YoFHpauZwH2Q=',
-      rating: 4.8,
-      sportType: 'Futebol',
-      description: 'Quadra de futebol society com grama sintética, iluminação e vestiário.',
-      hostName: 'Carlos',
-      address: 'Rua das Palmeiras, 123, Centro',
-    ),
-    SportsSpace(
-      id: '2',
-      name: 'Campo Society Zona Sul',
-      pricePerHour: 150.0,
-      imageUrl: 'https://media.istockphoto.com/id/1139701786/pt/foto/mini-football-field.jpg?s=1024x1024&w=is&k=20&c=1uJImYvRxQnNcTZMkaOuxM7rm46pnRlmAAgEFiJvVTI=',
-      rating: 4.9,
-      sportType: 'Futebol',
-      description: 'Campo society amplo, com estacionamento e lanchonete.',
-      hostName: 'Roberto',
-      address: 'Av. Sul, 321, Zona Sul',
-    ),
-    SportsSpace(
-      id: '3',
-      name: 'Estádio Arena Fut',
-      pricePerHour: 200.0,
-      imageUrl: 'https://media.istockphoto.com/id/1468843814/pt/foto/all-weather-artificial-grass-pitch.jpg?s=1024x1024&w=is&k=20&c=jg9K9KiWss723q2YHddMNWnhtLUAjP6VLBRAQW38_xg=',
-      rating: 4.7,
-      sportType: 'Futebol',
-      description: 'Estádio para jogos e eventos, com arquibancada e iluminação profissional.',
-      hostName: 'Marcos',
-      address: 'Av. das Nações, 1000, Centro',
-    ),
-    // Beach Tennis
-    SportsSpace(
-      id: '4',
-      name: 'Arena Beach Tennis',
-      pricePerHour: 90.0,
-      imageUrl: 'https://media.istockphoto.com/id/1289164936/pt/foto/beach-tennis.jpg?s=1024x1024&w=is&k=20&c=MCHqcx-5VlUjsSUNL1YMHuEwgEEt9kR7wR05XNYal9A=',
-      rating: 4.6,
-      sportType: 'Beach Tennis',
-      description: 'Quadra de areia para beach tennis, com estrutura coberta e bar.',
-      hostName: 'Fernanda',
-      address: 'Av. Atlântica, 456, Praia',
-    ),
-    SportsSpace(
-      id: '5',
-      name: 'Beach Tennis Club',
-      pricePerHour: 110.0,
-      imageUrl: 'https://media.istockphoto.com/id/2173311264/pt/foto/beach-tennis-match.jpg?s=1024x1024&w=is&k=20&c=kQDjf0Jz4uQGxUwJ83Xtc2cXoXlEpM-be8pEMXo4lEM=',
-      rating: 4.5,
-      sportType: 'Beach Tennis',
-      description: 'Clube com várias quadras de beach tennis e área de convivência.',
-      hostName: 'Paula',
-      address: 'Rua do Sol, 222, Litoral',
-    ),
-    SportsSpace(
-      id: '6',
-      name: 'Espaço Beach Pro',
-      pricePerHour: 100.0,
-      imageUrl: 'https://media.istockphoto.com/id/1351835469/pt/foto/beach-volleyball-court-established-in-the-city.jpg?s=1024x1024&w=is&k=20&c=9nIkVlFOccCmwhEhMZUI3ACMDqiDgVElG7KKVqylyj4=',
-      rating: 4.4,
-      sportType: 'Beach Tennis',
-      description: 'Espaço profissional para beach tennis, com vestiários e estacionamento.',
-      hostName: 'Lucas',
-      address: 'Av. Praia Grande, 789, Beira Mar',
-    ),
-    // Vôlei
-    SportsSpace(
-      id: '7',
-      name: 'Quadra de Vôlei Pro',
-      pricePerHour: 80.0,
-      imageUrl: 'https://plus.unsplash.com/premium_photo-1708696216310-5abfafa9aec9?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      rating: 4.7,
-      sportType: 'Vôlei',
-      description: 'Quadra de vôlei profissional, piso emborrachado e arquibancada.',
-      hostName: 'Juliana',
-      address: 'Rua do Esporte, 789, Bairro Novo',
-    ),
-    SportsSpace(
-      id: '8',
-      name: 'Vôlei Clube Master',
-      pricePerHour: 95.0,
-      imageUrl: 'https://plus.unsplash.com/premium_photo-1709303662628-c6460ac28bd5?q=80&w=1471&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      rating: 4.8,
-      sportType: 'Vôlei',
-      description: 'Clube com quadras de vôlei indoor e outdoor.',
-      hostName: 'Ana',
-      address: 'Rua das Flores, 333, Centro',
-    ),
-    SportsSpace(
-      id: '9',
-      name: 'Arena Vôlei Beach',
-      pricePerHour: 85.0,
-      imageUrl: 'https://images.unsplash.com/photo-1567880325673-ccc01edca61c?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      rating: 4.6,
-      sportType: 'Vôlei',
-      description: 'Quadra de vôlei de praia, areia fina e iluminação noturna.',
-      hostName: 'Bruno',
-      address: 'Av. Beira Rio, 555, Praia',
-    ),
-  ];
+  List<SportsSpace> _spaces = [];
   final List<SportsSpace> _favoritesSpaces = [];
   final List<ReservedSpace> _reservedSpaces = [];
   final List<NotificationItem> _notifications = [];
@@ -158,6 +143,8 @@ class AppState extends ChangeNotifier {
   final String _userEmail = 'nicollas@email.com';
   bool _darkMode = false;
   bool _notificationsEnabled = true;
+  bool _isLoadingSpaces = false;
+  String? _spacesError;
 
   List<SportsSpace> get spaces => _selectedSport == 'Todos'
       ? _spaces
@@ -170,6 +157,8 @@ class AppState extends ChangeNotifier {
   String get userEmail => _userEmail;
   bool get darkMode => _darkMode;
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get isLoadingSpaces => _isLoadingSpaces;
+  String? get spacesError => _spacesError;
 
   void toggleFavoriteSpace(SportsSpace space) {
     if (_favoritesSpaces.contains(space)) {
@@ -186,19 +175,22 @@ class AppState extends ChangeNotifier {
   }
 
   void reserveSpace(SportsSpace space, DateTime dateTime, int hours) {
-    if (!_reservedSpaces.any((r) => r.space == space && r.dateTime == dateTime)) {
-      _reservedSpaces.add(ReservedSpace(space: space, dateTime: dateTime, hours: hours));
+    if (!_reservedSpaces
+        .any((r) => r.space == space && r.dateTime == dateTime)) {
+      _reservedSpaces
+          .add(ReservedSpace(space: space, dateTime: dateTime, hours: hours));
       addNotification('Reserva para ${space.name} realizada com sucesso em '
-        '${dateTime.day.toString().padLeft(2, '0')}/'
-        '${dateTime.month.toString().padLeft(2, '0')}/'
-        '${dateTime.year} às '
-        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}');
+          '${dateTime.day.toString().padLeft(2, '0')}/'
+          '${dateTime.month.toString().padLeft(2, '0')}/'
+          '${dateTime.year} às '
+          '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}');
       notifyListeners();
     }
   }
 
   void addNotification(String message) {
-    _notifications.insert(0, NotificationItem(message: message, dateTime: DateTime.now()));
+    _notifications.insert(
+        0, NotificationItem(message: message, dateTime: DateTime.now()));
     notifyListeners();
   }
 
@@ -209,6 +201,19 @@ class AppState extends ChangeNotifier {
 
   void toggleNotifications(bool value) {
     _notificationsEnabled = value;
+    notifyListeners();
+  }
+
+  Future<void> fetchSpacesFromBackend() async {
+    _isLoadingSpaces = true;
+    _spacesError = null;
+    notifyListeners();
+    try {
+      _spaces = await SpaceService.fetchSpaces();
+    } catch (e) {
+      _spacesError = e.toString();
+    }
+    _isLoadingSpaces = false;
     notifyListeners();
   }
 
@@ -233,19 +238,20 @@ class MyApp extends StatelessWidget {
               useMaterial3: true,
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Colors.green,
-                brightness: appState.darkMode ? Brightness.dark : Brightness.light,
+                brightness:
+                    appState.darkMode ? Brightness.dark : Brightness.light,
               ),
             ),
             supportedLocales: const [
               Locale('pt', 'BR'),
               Locale('en', ''),
             ],
-            localizationsDelegates: [
+            localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: MainNavigation(),
+            home: const MainNavigation(),
           );
         },
       ),
@@ -268,16 +274,16 @@ class _MainNavigationState extends State<MainNavigation> {
     Widget page;
     switch (_selectedIndex) {
       case 0:
-        page = SportsHomePage();
+        page = const SportsHomePage();
         break;
       case 1:
-        page = FavoritesSpacesPage();
+        page = const FavoritesSpacesPage();
         break;
       case 2:
-        page = ProfilePage(); 
+        page = const ProfilePage();
         break;
       default:
-        page = SportsHomePage();
+        page = const SportsHomePage();
     }
     return Scaffold(
       body: page,
@@ -325,6 +331,13 @@ class _SportsHomePageState extends State<SportsHomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Buscar espaços do backend ao iniciar
+    Future.microtask(() => context.read<AppState>().fetchSpacesFromBackend());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final sports = ['Todos', 'Futebol', 'Beach Tennis', 'Vôlei'];
@@ -333,6 +346,14 @@ class _SportsHomePageState extends State<SportsHomePage> {
       return space.name.toLowerCase().contains(query);
     }).toList();
 
+    if (appState.isLoadingSpaces) {
+      return Center(child: CircularProgressIndicator());
+    }
+    if (appState.spacesError != null) {
+      return Center(
+          child: Text('Erro ao carregar espaços: \\${appState.spacesError}'));
+    }
+
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -340,7 +361,8 @@ class _SportsHomePageState extends State<SportsHomePage> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 0),
+                padding: const EdgeInsets.only(
+                    top: 16, left: 16, right: 16, bottom: 0),
                 child: Row(
                   children: [
                     Expanded(
@@ -348,36 +370,42 @@ class _SportsHomePageState extends State<SportsHomePage> {
                         controller: _searchController,
                         decoration: InputDecoration(
                           hintText: 'Inicie sua busca...',
-                          prefixIcon: Icon(Icons.search),
+                          prefixIcon: const Icon(Icons.search),
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: EdgeInsets.symmetric(vertical: 0),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 0),
                         ),
                         onChanged: (value) => setState(() {}),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     IconButton(
-                      icon: Icon(Icons.notifications),
+                      icon: const Icon(Icons.notifications),
                       tooltip: 'Notificações',
                       onPressed: () {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => NotificationsPage(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    const NotificationsPage(),
+                            transitionsBuilder: (context, animation,
+                                secondaryAnimation, child) {
                               const begin = Offset(1.0, 0.0);
                               const end = Offset.zero;
                               const curve = Curves.ease;
 
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                              var tween = Tween(begin: begin, end: end)
+                                  .chain(CurveTween(curve: curve));
                               var offsetAnimation = animation.drive(tween);
 
-                              return SlideTransition(position: offsetAnimation, child: child);
+                              return SlideTransition(
+                                  position: offsetAnimation, child: child);
                             },
                           ),
                         );
@@ -390,9 +418,9 @@ class _SportsHomePageState extends State<SportsHomePage> {
                 height: 60,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: sports.length,
-                  separatorBuilder: (_, __) => SizedBox(width: 12),
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     final sport = sports[index];
                     final isSelected = appState.selectedSport == sport;
@@ -414,7 +442,7 @@ class _SportsHomePageState extends State<SportsHomePage> {
                       label: Row(
                         children: [
                           Icon(icon, size: 20),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(sport),
                         ],
                       ),
@@ -422,10 +450,14 @@ class _SportsHomePageState extends State<SportsHomePage> {
                       onSelected: (_) {
                         appState.setSportFilter(sport);
                       },
-                      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[800]
-                          : Colors.grey.shade200,
+                      selectedColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.2),
+                      backgroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[800]
+                              : Colors.grey.shade200,
                       labelStyle: TextStyle(
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white
@@ -437,34 +469,42 @@ class _SportsHomePageState extends State<SportsHomePage> {
               ),
               Expanded(
                 child: filteredSpaces.isEmpty
-                    ? Center(child: Text('Nenhum espaço encontrado.'))
+                    ? const Center(child: Text('Nenhum espaço encontrado.'))
                     : ListView.builder(
-                        padding: EdgeInsets.all(16),
                         itemCount: filteredSpaces.length,
+                        padding: const EdgeInsets.all(16),
                         itemBuilder: (context, index) {
                           final space = filteredSpaces[index];
-                          final isFavorite = appState.favoritesSpaces.contains(space);
+                          final isFavorite =
+                              appState.favoritesSpaces.contains(space);
                           return InkWell(
                             onTap: () {
                               Navigator.push(
                                 context,
                                 PageRouteBuilder(
-                                  pageBuilder: (context, animation, secondaryAnimation) => SportsSpaceDetailPage(space: space),
-                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  pageBuilder: (context, animation,
+                                          secondaryAnimation) =>
+                                      SportsSpaceDetailPage(space: space),
+                                  transitionsBuilder: (context, animation,
+                                      secondaryAnimation, child) {
                                     const begin = Offset(1.0, 0.0);
                                     const end = Offset.zero;
                                     const curve = Curves.ease;
 
-                                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                    var offsetAnimation = animation.drive(tween);
+                                    var tween = Tween(begin: begin, end: end)
+                                        .chain(CurveTween(curve: curve));
+                                    var offsetAnimation =
+                                        animation.drive(tween);
 
-                                    return SlideTransition(position: offsetAnimation, child: child);
+                                    return SlideTransition(
+                                        position: offsetAnimation,
+                                        child: child);
                                   },
                                 ),
                               );
                             },
                             child: Card(
-                              margin: EdgeInsets.only(bottom: 16),
+                              margin: const EdgeInsets.only(bottom: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -473,28 +513,34 @@ class _SportsHomePageState extends State<SportsHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   ClipRRect(
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(16)),
                                     child: Image.network(
                                       space.imageUrl,
                                       height: 180,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => Center(
-                                        child: Icon(Icons.error, size: 50, color: Colors.red),
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Center(
+                                        child: Icon(Icons.error,
+                                            size: 50, color: Colors.red),
                                       ),
                                     ),
                                   ),
                                   Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Expanded(
                                               child: Text(
                                                 space.name,
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 18,
                                                 ),
@@ -503,34 +549,45 @@ class _SportsHomePageState extends State<SportsHomePage> {
                                             ),
                                             IconButton(
                                               icon: Icon(
-                                                isFavorite ? Icons.favorite : Icons.favorite_border,
-                                                color: isFavorite ? Colors.red : Colors.grey,
+                                                isFavorite
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                color: isFavorite
+                                                    ? Colors.red
+                                                    : Colors.grey,
                                               ),
                                               onPressed: () {
-                                                appState.toggleFavoriteSpace(space);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text(isFavorite ? 'Removido dos favoritos!' : 'Adicionado aos favoritos!')),
+                                                appState
+                                                    .toggleFavoriteSpace(space);
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(isFavorite
+                                                          ? 'Removido dos favoritos!'
+                                                          : 'Adicionado aos favoritos!')),
                                                 );
                                               },
                                             ),
                                           ],
                                         ),
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                         Text(
                                           'R\$${space.pricePerHour.toStringAsFixed(2)} / hora',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Colors.green,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        SizedBox(height: 8),
+                                        const SizedBox(height: 8),
                                         Row(
                                           children: [
-                                            Icon(Icons.star, color: Colors.amber, size: 18),
-                                            SizedBox(width: 4),
+                                            const Icon(Icons.star,
+                                                color: Colors.amber, size: 18),
+                                            const SizedBox(width: 4),
                                             Text(
                                               space.rating.toStringAsFixed(1),
-                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold),
                                             ),
                                           ],
                                         ),
@@ -564,8 +621,8 @@ class FavoritesSpacesPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
             child: Text(
               'Favoritos',
               style: TextStyle(
@@ -576,10 +633,12 @@ class FavoritesSpacesPage extends StatelessWidget {
           ),
           Expanded(
             child: favorites.isEmpty
-                ? Center(child: Text('Nenhum espaço favorito ainda.'))
+                ? const Center(child: Text('Nenhum espaço favorito ainda.'))
                 : GridView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
@@ -593,7 +652,8 @@ class FavoritesSpacesPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => SportsSpaceDetailPage(space: space),
+                              builder: (_) =>
+                                  SportsSpaceDetailPage(space: space),
                             ),
                           );
                         },
@@ -606,21 +666,25 @@ class FavoritesSpacesPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(16)),
                                 child: Image.network(
                                   space.imageUrl,
                                   height: 140,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Center(
-                                    child: Icon(Icons.error, size: 50, color: Colors.red),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Center(
+                                    child: Icon(Icons.error,
+                                        size: 50, color: Colors.red),
                                   ),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0, vertical: 6.0),
                                 child: Text(
                                   space.name,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
@@ -658,7 +722,7 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('pt', 'BR'),
     );
     if (pickedDate != null) {
@@ -670,11 +734,11 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
           return StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
-                title: Text('Selecione o horário'),
+                title: const Text('Selecione o horário'),
                 content: DropdownButton<int>(
                   isExpanded: true,
                   value: tempHour,
-                  hint: Text('Escolha o horário'),
+                  hint: const Text('Escolha o horário'),
                   items: List.generate(17, (i) => 7 + i).map((hour) {
                     return DropdownMenuItem(
                       value: hour,
@@ -692,7 +756,7 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     onPressed: () {
                       Navigator.pop(context);
                     },
-                    child: Text('Cancelar'),
+                    child: const Text('Cancelar'),
                   ),
                   ElevatedButton(
                     onPressed: tempHour != null
@@ -706,17 +770,18 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                               0,
                             );
                             final appState = context.read<AppState>();
-                            appState.reserveSpace(widget.space, startDateTime, _hours);
+                            appState.reserveSpace(
+                                widget.space, startDateTime, _hours);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Reserva de $_hours hora(s) para ${_formatDateTime(startDateTime, _hours)} realizada!'),
+                                    'Reserva de $_hours hora(s) para ${_formatDateTime(startDateTime, _hours)} realizada!'),
                               ),
                             );
                             Navigator.pop(context);
                           }
                         : null,
-                    child: Text('Confirmar'),
+                    child: const Text('Confirmar'),
                   ),
                 ],
               );
@@ -730,39 +795,41 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
   String _formatDateTime(DateTime dateTime, int hours) {
     final end = dateTime.add(Duration(hours: hours));
     return '${dateTime.day.toString().padLeft(2, '0')}/'
-           '${dateTime.month.toString().padLeft(2, '0')}/'
-           '${dateTime.year} '
-           '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} - '
-           '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+        '${dateTime.month.toString().padLeft(2, '0')}/'
+        '${dateTime.year} '
+        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} - '
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildComment(String user, int stars, String text) {
     return Card(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(child: Text(user[0])),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text(user, style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(width: 8),
+                      Text(user,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
                       Row(
                         children: List.generate(
                           stars,
-                          (i) => Icon(Icons.star, color: Colors.amber, size: 16),
+                          (i) => const Icon(Icons.star,
+                              color: Colors.amber, size: 16),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(text),
                 ],
               ),
@@ -783,21 +850,24 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
         children: [
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: 90),
+              padding: const EdgeInsets.only(bottom: 90),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(32)),
                         child: Image.network(
                           widget.space.imageUrl,
                           width: double.infinity,
                           height: 260,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Icon(Icons.error, size: 50, color: Colors.red),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                            child:
+                                Icon(Icons.error, size: 50, color: Colors.red),
                           ),
                         ),
                       ),
@@ -808,13 +878,18 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                           backgroundColor: Colors.white,
                           child: IconButton(
                             icon: Icon(
-                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
                               color: isFavorite ? Colors.red : Colors.grey,
                             ),
                             onPressed: () {
                               appState.toggleFavoriteSpace(widget.space);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(isFavorite ? 'Removido dos favoritos!' : 'Adicionado aos favoritos!')),
+                                SnackBar(
+                                    content: Text(isFavorite
+                                        ? 'Removido dos favoritos!'
+                                        : 'Adicionado aos favoritos!')),
                               );
                             },
                           ),
@@ -826,7 +901,8 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                         child: CircleAvatar(
                           backgroundColor: Colors.white,
                           child: IconButton(
-                            icon: Icon(Icons.arrow_back, color: Colors.black),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.black),
                             onPressed: () => Navigator.pop(context),
                           ),
                         ),
@@ -837,10 +913,11 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
                     child: Text(
                       widget.space.name,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                     ),
                   ),
                   Padding(
@@ -848,22 +925,28 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     child: Text(
                       widget.space.description,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
-                      ),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.85),
+                          ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: Row(
                       children: [
-                        Icon(Icons.star, color: Colors.amber, size: 22),
-                        SizedBox(width: 4),
+                        const Icon(Icons.star, color: Colors.amber, size: 22),
+                        const SizedBox(width: 4),
                         Text(
                           widget.space.rating.toStringAsFixed(2),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                         ),
                       ],
                     ),
@@ -872,13 +955,19 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: Row(
                       children: [
-                        Icon(Icons.person, color: Theme.of(context).colorScheme.primary, size: 22),
-                        SizedBox(width: 8),
+                        Icon(Icons.person,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22),
+                        const SizedBox(width: 8),
                         Text(
                           'Anfitrião: ${widget.space.hostName}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.85),
+                                  ),
                         ),
                       ],
                     ),
@@ -887,20 +976,28 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: Row(
                       children: [
-                        Icon(Icons.location_on, color: Colors.red, size: 22),
-                        SizedBox(width: 8),
+                        const Icon(Icons.location_on,
+                            color: Colors.red, size: 22),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             widget.space.address,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.85),
+                                ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         IconButton(
-                          icon: Icon(Icons.map, color: Theme.of(context).colorScheme.primary),
+                          icon: Icon(Icons.map,
+                              color: Theme.of(context).colorScheme.primary),
                           onPressed: () {
                             // Futuramente abrirá o mapa
                           },
@@ -913,20 +1010,24 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Avalie este espaço', style: Theme.of(context).textTheme.titleMedium),
-                        SizedBox(height: 8),
+                        Text('Avalie este espaço',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
                         Row(
-                          children: List.generate(5, (index) => Icon(Icons.star_border, color: Colors.amber)),
+                          children: List.generate(
+                              5,
+                              (index) => const Icon(Icons.star_border,
+                                  color: Colors.amber)),
                         ),
-                        SizedBox(height: 8),
-                        TextField(
+                        const SizedBox(height: 8),
+                        const TextField(
                           enabled: false, // Futuramente será habilitado
                           decoration: InputDecoration(
                             hintText: 'Deixe um comentário... (em breve)',
                             border: OutlineInputBorder(),
                           ),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -935,11 +1036,15 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Comentários', style: Theme.of(context).textTheme.titleMedium),
-                        SizedBox(height: 8),
-                        _buildComment('João', 5, 'Ótima quadra, muito bem cuidada!'),
-                        _buildComment('Maria', 4, 'Espaço bom, mas o estacionamento é pequeno.'),
-                        _buildComment('Lucas', 5, 'Voltarei mais vezes! Recomendo.'),
+                        Text('Comentários',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        _buildComment(
+                            'João', 5, 'Ótima quadra, muito bem cuidada!'),
+                        _buildComment('Maria', 4,
+                            'Espaço bom, mas o estacionamento é pequeno.'),
+                        _buildComment(
+                            'Lucas', 5, 'Voltarei mais vezes! Recomendo.'),
                       ],
                     ),
                   ),
@@ -952,10 +1057,10 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black12,
                     blurRadius: 10,
@@ -986,25 +1091,29 @@ class _SportsSpaceDetailPageState extends State<SportsSpaceDetailPage> {
                   Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.remove_circle_outline),
-                        onPressed: _hours > 1 ? () => setState(() => _hours--) : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed:
+                            _hours > 1 ? () => setState(() => _hours--) : null,
                       ),
-                      Text('$_hours h', style: TextStyle(fontSize: 18)),
+                      Text('$_hours h', style: const TextStyle(fontSize: 18)),
                       IconButton(
-                        icon: Icon(Icons.add_circle_outline),
+                        icon: const Icon(Icons.add_circle_outline),
                         onPressed: () => setState(() => _hours++),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.pink,
-                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                         onPressed: () => _pickDateTime(context),
-                        child: Text('Reservar', style: TextStyle(fontSize: 18, color: Colors.white)),
+                        child: const Text('Reservar',
+                            style:
+                                TextStyle(fontSize: 18, color: Colors.white)),
                       ),
                     ],
                   ),
@@ -1025,26 +1134,26 @@ class MyReservationsPage extends StatelessWidget {
   String _formatDateTime(DateTime dateTime, int hours) {
     final end = dateTime.add(Duration(hours: hours));
     return '${dateTime.day.toString().padLeft(2, '0')}/'
-           '${dateTime.month.toString().padLeft(2, '0')}/'
-           '${dateTime.year} '
-           '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} - '
-           '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+        '${dateTime.month.toString().padLeft(2, '0')}/'
+        '${dateTime.year} '
+        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} - '
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final reserved = context.watch<AppState>().reservedSpaces;
     return Scaffold(
-      appBar: AppBar(title: Text('Minhas Reservas')),
+      appBar: AppBar(title: const Text('Minhas Reservas')),
       body: reserved.isEmpty
-          ? Center(child: Text('Nenhuma reserva realizada.'))
+          ? const Center(child: Text('Nenhuma reserva realizada.'))
           : ListView.builder(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               itemCount: reserved.length,
               itemBuilder: (context, index) {
                 final reservedSpace = reserved[index];
                 return Card(
-                  margin: EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   child: ListTile(
                     leading: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -1053,7 +1162,8 @@ class MyReservationsPage extends StatelessWidget {
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Center(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(
                           child: Icon(Icons.error, size: 50, color: Colors.red),
                         ),
                       ),
@@ -1086,24 +1196,25 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
   Widget build(BuildContext context) {
     final userName = context.watch<AppState>().userName;
     return Scaffold(
-      appBar: AppBar(title: Text('Central de Ajuda')),
+      appBar: AppBar(title: const Text('Central de Ajuda')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Olá $userName, como podemos te ajudar?',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            SizedBox(height: 24),
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
             TextField(
               controller: _controller,
               maxLines: 4,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Digite sua dúvida ou comentário...',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () {
                 setState(() {
@@ -1111,12 +1222,13 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
                   _controller.clear();
                 });
               },
-              child: Text('Enviar'),
+              child: const Text('Enviar'),
             ),
             if (_submittedMessage != null && _submittedMessage!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 16.0),
-                child: Text('Mensagem enviada: $_submittedMessage', style: TextStyle(color: Colors.green)),
+                child: Text('Mensagem enviada: $_submittedMessage',
+                    style: const TextStyle(color: Colors.green)),
               ),
           ],
         ),
@@ -1132,30 +1244,34 @@ class UserProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return Scaffold(
-      appBar: AppBar(title: Text('Perfil do Usuário')),
+      appBar: AppBar(title: const Text('Perfil do Usuário')),
       body: Column(
         children: [
-          SizedBox(height: 32),
-          Center(
+          const SizedBox(height: 32),
+          const Center(
             child: CircleAvatar(
               radius: 56,
               child: Icon(Icons.person, size: 64),
             ),
           ),
-          SizedBox(height: 16),
-          Text(appState.userName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-          Text(appState.userEmail, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
-          SizedBox(height: 24),
+          const SizedBox(height: 16),
+          Text(appState.userName,
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(appState.userEmail,
+              style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+          const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
               // Futuramente: editar perfil
             },
-            icon: Icon(Icons.edit),
-            label: Text('Editar perfil'),
+            icon: const Icon(Icons.edit),
+            label: const Text('Editar perfil'),
             style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
             ),
           ),
         ],
@@ -1173,8 +1289,8 @@ class ProfilePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 32, 24, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1192,25 +1308,31 @@ class ProfilePage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => UserProfilePage()),
+                  MaterialPageRoute(builder: (_) => const UserProfilePage()),
                 );
               },
               child: Row(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 32,
-                    child: Text('N', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                    child: Text('N',
+                        style: TextStyle(
+                            fontSize: 28, fontWeight: FontWeight.bold)),
                   ),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Nicollas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text('Mostrar perfil', style: TextStyle(color: Colors.grey[600])),
+                      const Text('Nicollas',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text('Mostrar perfil',
+                          style: TextStyle(color: Colors.grey[600])),
                     ],
                   ),
-                  Spacer(),
-                  Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey[600]),
+                  const Spacer(),
+                  Icon(Icons.arrow_forward_ios,
+                      size: 18, color: Colors.grey[600]),
                 ],
               ),
             ),
@@ -1218,75 +1340,82 @@ class ProfilePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
             child: Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               elevation: 1,
               child: ListTile(
-                leading: Icon(Icons.home_work_outlined, size: 36, color: Colors.black87),
-                title: Text('Anuncie seu espaço'),
-                subtitle: Text('É fácil começar a receber reservas e ganhar uma renda extra.'),
-                trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                leading: const Icon(Icons.home_work_outlined,
+                    size: 36, color: Colors.black87),
+                title: const Text('Anuncie seu espaço'),
+                subtitle: const Text(
+                    'É fácil começar a receber reservas e ganhar uma renda extra.'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => SpaceRegisterPage()),
+                    MaterialPageRoute(
+                        builder: (_) => const SpaceRegisterPage()),
                   );
                 },
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-            child: Text('Configurações', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
+            child: Text('Configurações',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
                 ListTile(
-                  leading: Icon(Icons.person_outline),
-                  title: Text('Informações pessoais'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text('Informações pessoais'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => UserProfilePage()),
+                      MaterialPageRoute(
+                          builder: (_) => const UserProfilePage()),
                     );
                   },
                 ),
-                Divider(indent: 16, endIndent: 16),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: Icon(Icons.calendar_month_outlined),
-                  title: Text('Minhas reservas'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                  leading: const Icon(Icons.calendar_month_outlined),
+                  title: const Text('Minhas reservas'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => MyReservationsPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const MyReservationsPage()),
                     );
                   },
                 ),
-                Divider(indent: 16, endIndent: 16),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: Icon(Icons.help_outline),
-                  title: Text('Central de ajuda'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                  leading: const Icon(Icons.help_outline),
+                  title: const Text('Central de ajuda'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => HelpCenterPage()),
+                      MaterialPageRoute(builder: (_) => const HelpCenterPage()),
                     );
                   },
                 ),
-                Divider(indent: 16, endIndent: 16),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text('Configurações do app'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Configurações do app'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => SettingsPage()),
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
                     );
                   },
                 ),
@@ -1306,20 +1435,20 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return Scaffold(
-      appBar: AppBar(title: Text('Configurações do app')),
+      appBar: AppBar(title: const Text('Configurações do app')),
       body: ListView(
         children: [
           SwitchListTile(
-            title: Text('Modo escuro'),
+            title: const Text('Modo escuro'),
             value: appState.darkMode,
             onChanged: (value) => appState.toggleDarkMode(value),
-            secondary: Icon(Icons.dark_mode),
+            secondary: const Icon(Icons.dark_mode),
           ),
           SwitchListTile(
-            title: Text('Notificações'),
+            title: const Text('Notificações'),
             value: appState.notificationsEnabled,
             onChanged: (value) => appState.toggleNotifications(value),
-            secondary: Icon(Icons.notifications_active),
+            secondary: const Icon(Icons.notifications_active),
           ),
         ],
       ),
@@ -1342,7 +1471,20 @@ class _SpaceRegisterPageState extends State<SpaceRegisterPage> {
   final _addressController = TextEditingController();
   final _descController = TextEditingController();
   final _hostController = TextEditingController();
-  final _imageController = TextEditingController();
+  File? _pickedImage;
+  String? _imageError;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) {
+      setState(() {
+        _pickedImage = File(picked.path);
+        _imageError = null;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -1352,83 +1494,146 @@ class _SpaceRegisterPageState extends State<SpaceRegisterPage> {
     _addressController.dispose();
     _descController.dispose();
     _hostController.dispose();
-    _imageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Cadastrar Espaço Esportivo')),
+      appBar: AppBar(title: const Text('Cadastrar Espaço Esportivo')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: _pickedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(_pickedImage!,
+                              width: 160, height: 120, fit: BoxFit.cover),
+                        )
+                      : Container(
+                          width: 160,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey),
+                          ),
+                          child: const Icon(Icons.add_a_photo,
+                              size: 40, color: Colors.grey),
+                        ),
+                ),
+              ),
+              if (_imageError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(_imageError!,
+                      style: const TextStyle(color: Colors.red)),
+                ),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _nameController,
-                decoration: InputDecoration(labelText: 'Nome do espaço'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o nome' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Nome do espaço', border: OutlineInputBorder()),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Informe o nome' : null,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _typeController,
-                decoration: InputDecoration(labelText: 'Tipo de esporte'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o tipo' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Tipo de esporte', border: OutlineInputBorder()),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Informe o tipo' : null,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _priceController,
-                decoration: InputDecoration(labelText: 'Valor por hora'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || v.isEmpty ? 'Informe o valor' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Valor por hora',
+                    border: OutlineInputBorder(),
+                    prefixText: 'R\$ '),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Informe o valor';
+                  final value = double.tryParse(v.replaceAll(',', '.'));
+                  if (value == null || value <= 0)
+                    return 'Informe um valor válido (> 0)';
+                  return null;
+                },
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,
-                decoration: InputDecoration(labelText: 'Endereço'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o endereço' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Endereço', border: OutlineInputBorder()),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Informe o endereço' : null,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _descController,
-                decoration: InputDecoration(labelText: 'Descrição'),
+                decoration: const InputDecoration(
+                    labelText: 'Descrição', border: OutlineInputBorder()),
                 maxLines: 2,
-                validator: (v) => v == null || v.isEmpty ? 'Informe a descrição' : null,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Informe a descrição'
+                    : null,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _hostController,
-                decoration: InputDecoration(labelText: 'Nome do anfitrião'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o anfitrião' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Nome do anfitrião',
+                    border: OutlineInputBorder()),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Informe o anfitrião'
+                    : null,
               ),
-              SizedBox(height: 12),
-              TextFormField(
-                controller: _imageController,
-                decoration: InputDecoration(labelText: 'URL da imagem'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe a imagem' : null,
-              ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    final appState = context.read<AppState>();
-                    appState.addSpace(SportsSpace(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      name: _nameController.text,
-                      pricePerHour: double.tryParse(_priceController.text) ?? 0,
-                      imageUrl: _imageController.text,
-                      rating: 0,
-                      sportType: _typeController.text,
-                      description: _descController.text,
-                      hostName: _hostController.text,
-                      address: _addressController.text,
-                    ));
-                    Navigator.pop(context);
+                onPressed: () async {
+                  final isValid = _formKey.currentState!.validate();
+                  if (isValid) {
+                    try {
+                      await SpaceService.createSpace(
+                        name: _nameController.text.trim(),
+                        type: _typeController.text.trim(),
+                        price: double.parse(
+                            _priceController.text.replaceAll(',', '.')),
+                        address: _addressController.text.trim(),
+                        description: _descController.text.trim(),
+                        host: _hostController.text.trim(),
+                        imageUrl: _pickedImage != null
+                            ? _pickedImage!.path
+                            : '', // Por enquanto, só o path local
+                      );
+                      if (mounted) {
+                        await context.read<AppState>().fetchSpacesFromBackend();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Cadastro realizado!')),
+                        );
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro ao cadastrar: $e')),
+                      );
+                    }
                   }
                 },
-                child: Text('Cadastrar'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 18),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                ),
+                child: const Text('Cadastrar'),
               ),
             ],
           ),
@@ -1445,16 +1650,16 @@ class NotificationsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final notifications = context.watch<AppState>().notifications;
     return Scaffold(
-      appBar: AppBar(title: Text('Notificações')),
+      appBar: AppBar(title: const Text('Notificações')),
       body: notifications.isEmpty
-          ? Center(child: Text('Nenhuma notificação disponível.'))
+          ? const Center(child: Text('Nenhuma notificação disponível.'))
           : ListView.builder(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final notification = notifications[index];
                 return Card(
-                  margin: EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   child: ListTile(
                     title: Text(notification.message),
                     subtitle: Text(
