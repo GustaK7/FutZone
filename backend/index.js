@@ -28,12 +28,14 @@ app.get('/spaces', async (req, res) => {
 });
 
 app.post('/spaces', async (req, res) => {
+  console.log('Recebido no POST /spaces:', req.body); // Log para depuração
   try {
     const space = new Space(req.body);
     await space.save();
     res.status(201).json(space);
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao cadastrar espaço' });
+    console.error('Erro ao cadastrar espaço:', err);
+    res.status(400).json({ error: 'Erro ao cadastrar espaço', details: err.message });
   }
 });
 

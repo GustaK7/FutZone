@@ -1604,14 +1604,12 @@ class _SpaceRegisterPageState extends State<SpaceRegisterPage> {
                       await SpaceService.createSpace(
                         name: _nameController.text.trim(),
                         type: _typeController.text.trim(),
-                        price: double.parse(
-                            _priceController.text.replaceAll(',', '.')),
+                        price: double.parse(_priceController.text.replaceAll(',', '.')),
                         address: _addressController.text.trim(),
                         description: _descController.text.trim(),
                         host: _hostController.text.trim(),
-                        imageUrl: _pickedImage != null
-                            ? _pickedImage!.path
-                            : '', // Por enquanto, só o path local
+                        // Sempre envie uma URL de imagem válida para o backend
+                        imageUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
                       );
                       if (mounted) {
                         await context.read<AppState>().fetchSpacesFromBackend();
