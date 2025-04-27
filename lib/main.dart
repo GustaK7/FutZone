@@ -347,7 +347,7 @@ class _SportsHomePageState extends State<SportsHomePage> {
     }).toList();
 
     if (appState.isLoadingSpaces) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
     if (appState.spacesError != null) {
       return Center(
@@ -1558,12 +1558,13 @@ class _SpaceRegisterPageState extends State<SpaceRegisterPage> {
                     labelText: 'Valor por hora',
                     border: OutlineInputBorder(),
                     prefixText: 'R\$ '),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Informe o valor';
                   final value = double.tryParse(v.replaceAll(',', '.'));
-                  if (value == null || value <= 0)
+                  if (value == null || value <= 0) {
                     return 'Informe um valor válido (> 0)';
+                  }
                   return null;
                 },
               ),
