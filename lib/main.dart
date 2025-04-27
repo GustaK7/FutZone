@@ -1,226 +1,28 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
+//import 'dart:convert';
+//import 'dart:io';
+//import 'package:image_picker/image_picker.dart';
+//import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter/animation.dart';
+//import 'package:flutter/widgets.dart';
+//import 'package:flutter/animation.dart';
+
+//import '../config/app_config.dart';
+
+//import '../models/sports_space.dart';
+//import '../models/reserved_space.dart';
+//import '../models/notification_item.dart';
+
+//import '../services/space_service.dart';
+//import '../services/user_service.dart';
+
+import '../state/app_state.dart';
+
+import '../pages/main_navigation.dart';
 
 void main() {
   runApp(const MyApp());
-}
-
-class AppConfig {
-  static const String backendUrl =
-      'http://localhost:3000'; // Corrigido: adicionado os dois pontos
-}
-
-class SportsSpace {
-  final String id;
-  final String name;
-  final double pricePerHour;
-  final String imageUrl;
-  final double rating;
-  final String sportType;
-  final String description;
-  final String hostName;
-  final String address;
-
-  SportsSpace({
-    required this.id,
-    required this.name,
-    required this.pricePerHour,
-    required this.imageUrl,
-    required this.rating,
-    required this.sportType,
-    required this.description,
-    required this.hostName,
-    required this.address,
-  });
-}
-
-class ReservedSpace {
-  final SportsSpace space;
-  final DateTime dateTime;
-  final int hours;
-  ReservedSpace(
-      {required this.space, required this.dateTime, required this.hours});
-}
-
-class NotificationItem {
-  final String message;
-  final DateTime dateTime;
-  NotificationItem({required this.message, required this.dateTime});
-}
-
-class SpaceService {
-  static Future<List<SportsSpace>> fetchSpaces() async {
-    final response =
-        await http.get(Uri.parse('${AppConfig.backendUrl}/spaces'));
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data
-          .map((json) => SportsSpace(
-                id: json['_id'] ?? '',
-                name: json['name'] ?? '',
-                pricePerHour: (json['pricePerHour'] ?? 0).toDouble(),
-                imageUrl: json['imageUrl'] ?? '',
-                rating: (json['rating'] ?? 0).toDouble(),
-                sportType: json['sportType'] ?? '',
-                description: json['description'] ?? '',
-                hostName: json['hostName'] ?? '',
-                address: json['address'] ?? '',
-              ))
-          .toList();
-    } else {
-      throw Exception('Erro ao buscar espaços');
-    }
-  }
-
-  static Future<void> createSpace({
-    required String name,
-    required String type,
-    required double price,
-    required String address,
-    required String description,
-    required String host,
-    required String imageUrl,
-  }) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.backendUrl}/spaces'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'name': name,
-        'sportType': type,
-        'pricePerHour': price,
-        'address': address,
-        'description': description,
-        'hostName': host,
-        'imageUrl': imageUrl,
-        'rating': 0,
-      }),
-    );
-    if (response.statusCode != 201) {
-      throw Exception('Erro ao cadastrar espaço');
-    }
-  }
-}
-
-class UserService {
-  static Future<Map<String, dynamic>> fetchUser(String email) async {
-    final response =
-        await http.get(Uri.parse('${AppConfig.backendUrl}/users?email=$email'));
-    if (response.statusCode == 200) {
-      final List data = json.decode(response.body);
-      if (data.isNotEmpty) return data.first;
-      throw Exception('Usuário não encontrado');
-    } else {
-      throw Exception('Erro ao buscar usuário');
-    }
-  }
-
-  static Future<void> updateUser(String id, Map<String, dynamic> update) async {
-    final response = await http.put(
-      Uri.parse('${AppConfig.backendUrl}/users/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(update),
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Erro ao atualizar usuário');
-    }
-  }
-}
-
-class AppState extends ChangeNotifier {
-  List<SportsSpace> _spaces = [];
-  final List<SportsSpace> _favoritesSpaces = [];
-  final List<ReservedSpace> _reservedSpaces = [];
-  final List<NotificationItem> _notifications = [];
-  String _selectedSport = 'Todos';
-  final String _userName = 'Nicollas';
-  final String _userEmail = 'nicollas@email.com';
-  bool _darkMode = false;
-  bool _notificationsEnabled = true;
-  bool _isLoadingSpaces = false;
-  String? _spacesError;
-
-  List<SportsSpace> get spaces => _selectedSport == 'Todos'
-      ? _spaces
-      : _spaces.where((s) => s.sportType == _selectedSport).toList();
-  List<SportsSpace> get favoritesSpaces => _favoritesSpaces;
-  List<ReservedSpace> get reservedSpaces => _reservedSpaces;
-  List<NotificationItem> get notifications => _notifications;
-  String get selectedSport => _selectedSport;
-  String get userName => _userName;
-  String get userEmail => _userEmail;
-  bool get darkMode => _darkMode;
-  bool get notificationsEnabled => _notificationsEnabled;
-  bool get isLoadingSpaces => _isLoadingSpaces;
-  String? get spacesError => _spacesError;
-
-  void toggleFavoriteSpace(SportsSpace space) {
-    if (_favoritesSpaces.contains(space)) {
-      _favoritesSpaces.remove(space);
-    } else {
-      _favoritesSpaces.add(space);
-    }
-    notifyListeners();
-  }
-
-  void setSportFilter(String sport) {
-    _selectedSport = sport;
-    notifyListeners();
-  }
-
-  void reserveSpace(SportsSpace space, DateTime dateTime, int hours) {
-    if (!_reservedSpaces
-        .any((r) => r.space == space && r.dateTime == dateTime)) {
-      _reservedSpaces
-          .add(ReservedSpace(space: space, dateTime: dateTime, hours: hours));
-      addNotification('Reserva para ${space.name} realizada com sucesso em '
-          '${dateTime.day.toString().padLeft(2, '0')}/'
-          '${dateTime.month.toString().padLeft(2, '0')}/'
-          '${dateTime.year} às '
-          '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}');
-      notifyListeners();
-    }
-  }
-
-  void addNotification(String message) {
-    _notifications.insert(
-        0, NotificationItem(message: message, dateTime: DateTime.now()));
-    notifyListeners();
-  }
-
-  void toggleDarkMode(bool value) {
-    _darkMode = value;
-    notifyListeners();
-  }
-
-  void toggleNotifications(bool value) {
-    _notificationsEnabled = value;
-    notifyListeners();
-  }
-
-  Future<void> fetchSpacesFromBackend() async {
-    _isLoadingSpaces = true;
-    _spacesError = null;
-    notifyListeners();
-    try {
-      _spaces = await SpaceService.fetchSpaces();
-    } catch (e) {
-      _spacesError = e.toString();
-    }
-    _isLoadingSpaces = false;
-    notifyListeners();
-  }
-
-  void addSpace(SportsSpace space) {
-    _spaces.add(space);
-    notifyListeners();
-  }
 }
 
 class MyApp extends StatelessWidget {
@@ -347,7 +149,7 @@ class _SportsHomePageState extends State<SportsHomePage> {
     }).toList();
 
     if (appState.isLoadingSpaces) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator());
     }
     if (appState.spacesError != null) {
       return Center(
@@ -1558,13 +1360,12 @@ class _SpaceRegisterPageState extends State<SpaceRegisterPage> {
                     labelText: 'Valor por hora',
                     border: OutlineInputBorder(),
                     prefixText: 'R\$ '),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Informe o valor';
                   final value = double.tryParse(v.replaceAll(',', '.'));
-                  if (value == null || value <= 0) {
+                  if (value == null || value <= 0)
                     return 'Informe um valor válido (> 0)';
-                  }
                   return null;
                 },
               ),
