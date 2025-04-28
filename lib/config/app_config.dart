@@ -1,4 +1,4 @@
 class AppConfig {
   static const String backendUrl =
-      'http://localhost:3000'; // Corrigido: adicionado os dois pontos
+      'https://futzone-back.onrender.com'; // Corrigido: adicionado os dois pontos
 }
