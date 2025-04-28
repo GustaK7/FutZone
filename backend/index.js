@@ -59,6 +59,41 @@ app.post('/users', async (req, res) => {
   }
 });
 
+// Rota para atualizar informações do usuário
+app.put('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, email } = req.body;
+    const user = await User.findByIdAndUpdate(id, { name, phone, email }, { new: true });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao atualizar informações do usuário', details: err.message });
+  }
+});
+
+// Rota para alterar senha do usuário
+app.put('/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    // Verificar senha atual (mocked para simplificação)
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ error: 'Senha atual incorreta' });
+    }
+
+    // Atualizar senha
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Senha alterada com sucesso' });
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao alterar senha', details: err.message });
+  }
+});
+
 // Rotas para reservas
 app.get('/reservations', async (req, res) => {
   try {
