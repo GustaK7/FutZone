@@ -7,6 +7,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+app.use((req, res, next) => {
+  console.log(`Recebida requisição: ${req.method} ${req.url}`);
+  next();
+});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB conectado!'))
   .catch(err => console.error('Erro ao conectar no MongoDB:', err));
@@ -16,6 +21,11 @@ const Space = require('./models/Space');
 const User = require('./models/User');
 const Reservation = require('./models/reservartion');
 const Rating = require('./models/rating');
+
+// Middleware de validação para usuários
+const validateUserData = (req, res, next) => {
+  next(); // Middleware vazio para não bloquear as requisições
+};
 
 // Rotas para espaços esportivos
 app.get('/spaces', async (req, res) => {
@@ -49,26 +59,74 @@ app.get('/users', async (req, res) => {
   }
 });
 
-app.post('/users', async (req, res) => {
+app.post('/users', validateUserData, async (req, res) => {
   try {
     const user = new User(req.body);
     await user.save();
     res.status(201).json(user);
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao cadastrar usuário' });
+    res.status(400).json({ error: 'Erro ao cadastrar usuário', details: err.message });
+  }
+});
+
+// Rota para buscar informações de um usuário pelo ID
+app.get('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar informações do usuário', details: err.message });
   }
 });
 
 // Rota para atualizar informações do usuário
-app.put('/users/:id', async (req, res) => {
+app.put('/users/:id', validateUserData, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, email } = req.body;
-    const user = await User.findByIdAndUpdate(id, { name, phone, email }, { new: true });
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    res.json(user);
+    const { name, email, phone } = req.body;
+
+    console.log(`Recebido PUT /users/${id}`); // Log do ID recebido
+    console.log('Dados recebidos no corpo da requisição:', req.body);
+    console.log('Dados recebidos no corpo da requisição:', { name, email, phone });
+
+    // Converter o ID para ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error('ID inválido:', id); // Log de erro
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+    const objectId = new mongoose.Types.ObjectId(id); // Corrigido para usar 'new' ao instanciar ObjectId
+
+    // Verificar se o usuário existe
+    const user = await User.findById(objectId);
+    if (!user) {
+      console.error('Usuário não encontrado para o ID:', id); // Log de erro
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    // Atualizar informações do usuário
+    user.name = name || user.name;
+    user.email = email || user.email;
+    // Garantir que o campo phone seja um número antes de salvar
+    user.phone = parseInt(phone, 10) || user.phone;
+    await user.save();
+
+    console.log('Usuário atualizado com sucesso:', user); // Log de sucesso
+    res.json({ message: 'Informações do usuário atualizadas com sucesso', user });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao atualizar informações do usuário', details: err.message });
+    console.error('Erro ao atualizar informações do usuário:', err); // Log de erro
+    res.status(500).json({ error: 'Erro ao atualizar informações do usuário', details: err.message });
   }
 });
 

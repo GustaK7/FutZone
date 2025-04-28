@@ -17,6 +17,8 @@ class UserService {
   }
 
   static Future<void> updateUser(String id, Map<String, dynamic> update) async {
+    print('Enviando dados para atualização do usuário: $update');
+    print('Dados enviados para o backend: $update');
     final response = await http.put(
       Uri.parse('${AppConfig.backendUrl}/users/$id'),
       headers: {'Content-Type': 'application/json'},
@@ -38,6 +40,24 @@ class UserService {
     );
     if (response.statusCode != 200) {
       throw Exception('Erro ao alterar senha: ${response.body}');
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchUserById(String userId) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.backendUrl}/users/$userId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> userData = json.decode(response.body);
+
+      // Garantir que os tipos estão corretos
+      userData['phoneNumber'] = userData['phoneNumber']?.toString();
+
+      return userData;
+    } else {
+      throw Exception('Erro ao buscar informações do usuário: ${response.body}');
     }
   }
 }
