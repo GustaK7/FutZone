@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../state/app_state.dart';
 
@@ -151,7 +150,7 @@ class _SportsHomePageState extends State<SportsHomePage> {
                             icon = Icons.beach_access;
                             break;
                           case 'Futebol na Areia':
-                            icon = FontAwesomeIcons.futbol;
+                            icon = Icons.sports_soccer; // Corrigido para usar o prefixo correto 'Icons'
                             break;
                           case 'Basquete':
                             icon = Icons.sports_basketball;
