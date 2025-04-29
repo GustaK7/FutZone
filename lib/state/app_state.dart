@@ -5,6 +5,7 @@ import 'package:futzone/models/reserved_space.dart';
 import 'package:futzone/models/sports_space.dart';
 
 import 'package:futzone/services/space_service.dart';
+import 'package:futzone/services/user_service.dart';
 
 class AppState extends ChangeNotifier {
   List<SportsSpace> _spaces = [];
@@ -12,13 +13,15 @@ class AppState extends ChangeNotifier {
   final List<ReservedSpace> _reservedSpaces = [];
   final List<NotificationItem> _notifications = [];
   String _selectedSport = 'Todos';
-  final String _userName = 'Nicollas';
-  final String _userEmail = 'nicollas@email.com';
+  String? _userName; // Nome do usuário logado
+  String? _userEmail; // E-mail do usuário logado
+  String? _userId; // ID do usuário logado
   bool _darkMode = false;
   bool _notificationsEnabled = true;
   bool _isLoadingSpaces = false;
   String? _spacesError;
 
+  // Getters
   List<SportsSpace> get spaces => _selectedSport == 'Todos'
       ? _spaces
       : _spaces.where((s) => s.sportType == _selectedSport).toList();
@@ -26,12 +29,30 @@ class AppState extends ChangeNotifier {
   List<ReservedSpace> get reservedSpaces => _reservedSpaces;
   List<NotificationItem> get notifications => _notifications;
   String get selectedSport => _selectedSport;
-  String get userName => _userName;
-  String get userEmail => _userEmail;
+  String? get userName => _userName;
+  String? get userEmail => _userEmail;
+  String? get userId => _userId;
   bool get darkMode => _darkMode;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get isLoadingSpaces => _isLoadingSpaces;
   String? get spacesError => _spacesError;
+
+  // Métodos
+  void setUserId(String id) {
+    _userId = id;
+    notifyListeners();
+  }
+
+  Future<void> fetchUserData(String userId) async {
+    try {
+      final userData = await UserService.fetchUserById(userId); // Busca os dados do usuário no banco
+      _userName = userData['name'] ?? 'Usuário';
+      _userEmail = userData['email'] ?? 'email@exemplo.com';
+      notifyListeners(); // Notifica os widgets que dependem do AppState
+    } catch (e) {
+      debugPrint('Erro ao buscar dados do usuário: $e');
+    }
+  }
 
   void toggleFavoriteSpace(SportsSpace space) {
     if (_favoritesSpaces.contains(space)) {
