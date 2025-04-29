@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../state/app_state.dart';
 
 import 'sports_space_detail_page.dart';
 import 'notifications_page.dart';
-
-
 
 class SportsHomePage extends StatefulWidget {
   const SportsHomePage({super.key});
@@ -17,10 +16,12 @@ class SportsHomePage extends StatefulWidget {
 
 class _SportsHomePageState extends State<SportsHomePage> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -34,10 +35,28 @@ class _SportsHomePageState extends State<SportsHomePage> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final sports = ['Todos', 'Futebol', 'Beach Tennis', 'Vôlei'];
+    final sports = ['Todos', 'Futebol', 'Beach Tennis', 'Vôlei', 'Vôlei na Areia', 'Futebol na Areia', 'Basquete', 'Futsal'];
+    // Filtrar espaços com base no esporte selecionado usando switch case
     final filteredSpaces = appState.spaces.where((space) {
-      final query = _searchController.text.toLowerCase();
-      return space.name.toLowerCase().contains(query);
+      switch (appState.selectedSport) {
+        case 'Futebol':
+          return space.sportType == 'Futebol';
+        case 'Beach Tennis':
+          return space.sportType == 'Beach Tennis';
+        case 'Vôlei':
+          return space.sportType == 'Vôlei';
+        case 'Vôlei na Areia':
+          return space.sportType == 'Vôlei na Areia';
+        case 'Futebol na Areia':
+          return space.sportType == 'Futebol na Areia';
+        case 'Basquete':
+          return space.sportType == 'Basquete';
+        case 'Futsal':
+          return space.sportType == 'Futsal';
+        case 'Todos':
+        default:
+          return true; // Retorna todos os espaços
+      }
     }).toList();
 
     if (appState.isLoadingSpaces) {
@@ -110,55 +129,71 @@ class _SportsHomePageState extends State<SportsHomePage> {
               ),
               SizedBox(
                 height: 60,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: sports.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final sport = sports[index];
-                    final isSelected = appState.selectedSport == sport;
-                    IconData icon;
-                    switch (sport) {
-                      case 'Futebol':
-                        icon = Icons.sports_soccer;
-                        break;
-                      case 'Beach Tennis':
-                        icon = Icons.sports_tennis;
-                        break;
-                      case 'Vôlei':
-                        icon = Icons.sports_volleyball;
-                        break;
-                      default:
-                        icon = Icons.sports;
-                    }
-                    return ChoiceChip(
-                      label: Row(
-                        children: [
-                          Icon(icon, size: 20),
-                          const SizedBox(width: 4),
-                          Text(sport),
-                        ],
-                      ),
-                      selected: isSelected,
-                      onSelected: (_) {
-                        appState.setSportFilter(sport);
-                      },
-                      selectedColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.2),
-                      backgroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey[800]
-                              : Colors.grey.shade200,
-                      labelStyle: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                    );
-                  },
+                child: Expanded(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: sports.map((sport) {
+                        final isSelected = appState.selectedSport == sport;
+                        IconData icon;
+                        switch (sport) {
+                          case 'Futebol':
+                            icon = Icons.sports_soccer;
+                            break;
+                          case 'Beach Tennis':
+                            icon = Icons.sports_tennis;
+                            break;
+                          case 'Vôlei':
+                            icon = Icons.sports_volleyball;
+                            break;
+                          case 'Vôlei na Areia':
+                            icon = Icons.beach_access;
+                            break;
+                          case 'Futebol na Areia':
+                            icon = FontAwesomeIcons.futbol;
+                            break;
+                          case 'Basquete':
+                            icon = Icons.sports_basketball;
+                            break;
+                          case 'Futsal':
+                            icon = Icons.sports_soccer; // Ícone de futebol para Futsal
+                            break;
+                          default:
+                            icon = Icons.sports;
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: ChoiceChip(
+                            label: Row(
+                              children: [
+                                Icon(icon, size: 20),
+                                const SizedBox(width: 4),
+                                Text(sport),
+                              ],
+                            ),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              appState.setSportFilter(sport);
+                            },
+                            selectedColor: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey[800]
+                                    : Colors.grey.shade200,
+                            labelStyle: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ),
               Expanded(
