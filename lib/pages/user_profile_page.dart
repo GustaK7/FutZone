@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+//import 'package:provider/provider.dart';
 
-import '../state/app_state.dart';
+//import '../state/app_state.dart';
 import '../services/user_service.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -149,7 +149,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return null;
   }
 
-  String? _validatePassword(String? value) {
+  /*String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Por favor, insira a senha';
     }
@@ -157,7 +157,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return 'A senha deve ter pelo menos 6 caracteres';
     }
     return null;
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {

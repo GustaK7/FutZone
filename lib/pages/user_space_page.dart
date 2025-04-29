@@ -1,4 +1,4 @@
-/*import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -10,14 +10,14 @@ class UserSpacesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final userSpaces = appState.userSpaces; // Supondo que o AppState tenha os espaços do usuário
+    final spaces = appState.spaces; // Atualizado para usar o getter 'spaces'
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meus Espaços'),
       ),
       body: SafeArea(
-        child: userSpaces.isEmpty
+        child: spaces.isEmpty
             ? const Center(
                 child: Text(
                   'Você ainda não registrou nenhum espaço.',
@@ -25,10 +25,10 @@ class UserSpacesPage extends StatelessWidget {
                 ),
               )
             : ListView.builder(
-                itemCount: userSpaces.length,
+                itemCount: spaces.length,
                 padding: const EdgeInsets.all(16),
                 itemBuilder: (context, index) {
-                  final space = userSpaces[index];
+                  final space = spaces[index];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     shape: RoundedRectangleBorder(
@@ -108,4 +108,4 @@ class UserSpacesPage extends StatelessWidget {
       ),
     );
   }
-}*/
+}

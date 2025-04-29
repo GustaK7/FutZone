@@ -1,28 +1,6 @@
-//import 'dart:convert';
-//import 'dart:io';
-//import 'package:image_picker/image_picker.dart';
-//import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-//import 'package:provider/provider.dart';
-//import 'package:flutter_localizations/flutter_localizations.dart';
-//import 'package:flutter/widgets.dart';
-//import 'package:flutter/animation.dart';
-
-//import '../config/app_config.dart';
-
-//import '../models/sports_space.dart';
-//import '../models/reserved_space.dart';
-//import '../models/notification_item.dart';
-
-//import '../services/space_service.dart';
-//import '../services/user_service.dart';
-
-//import '../state/app_state.dart';
-
 import 'user_profile_page.dart';
-//import 'sports_space_detail_page.dart';
-//import 'notifications_page.dart';
-import 'my_reservations_page.dart';
+import 'user_space_page.dart';
 import 'help_center_page.dart';
 import 'space_register_page.dart';
 import 'settings_page.dart';
@@ -131,14 +109,14 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: const Icon(Icons.calendar_month_outlined),
-                  title: const Text('Minhas reservas'),
+                  leading: const Icon(Icons.home_outlined),
+                  title: const Text('Meus Espaços'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const MyReservationsPage()),
+                          builder: (_) => const UserSpacesPage()),
                     );
                   },
                 ),
